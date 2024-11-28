@@ -381,6 +381,14 @@ TORCH_LIBRARY_EXPAND(TORCH_EXTENSION_NAME, ops) {
   ops.impl("dynamic_per_token_scaled_fp8_quant", torch::kCUDA,
            &dynamic_per_token_scaled_fp8_quant);
 
+  // Compute custom dynamic-per-token FP8 quantized tensor and scaling factor.
+  ops.def(
+      "custom_dynamic_per_token_scaled_fp8_quant(Tensor! result, Tensor input, "
+      "Tensor! scale, Tensor? scale_ub) -> "
+      "()");
+  ops.impl("custom_dynamic_per_token_scaled_fp8_quant", torch::kCUDA,
+           &custom_dynamic_per_token_scaled_fp8_quant);
+
   // Compute int8 quantized tensor for given scaling factor.
   ops.def(
       "static_scaled_int8_quant(Tensor! result, Tensor input, Tensor scale,"
@@ -393,6 +401,13 @@ TORCH_LIBRARY_EXPAND(TORCH_EXTENSION_NAME, ops) {
       "Tensor!? azp) -> ()");
   ops.impl("dynamic_scaled_int8_quant", torch::kCUDA,
            &dynamic_scaled_int8_quant);
+
+  // Compute custom int8 quantized tensor and scaling factor
+  ops.def(
+      "custom_dynamic_scaled_int8_quant(Tensor! result, Tensor input, Tensor! scale, "
+      "Tensor!? azp) -> ()");
+  ops.impl("custom_dynamic_scaled_int8_quant", torch::kCUDA,
+           &custom_dynamic_scaled_int8_quant);
 }
 
 TORCH_LIBRARY_EXPAND(CONCAT(TORCH_EXTENSION_NAME, _cache_ops), cache_ops) {

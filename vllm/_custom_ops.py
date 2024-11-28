@@ -723,7 +723,13 @@ def scaled_fp8_quant(
     else:
         # num_token_padding not implemented for this case
         assert (scale.numel() == 1 or num_token_padding is None)
-        torch.ops._C.static_scaled_fp8_quant(output, input, scale)
+        if scale.numel() == 1:
+            torch.ops._C.static_scaled_fp8_quant(output, input, scale)
+        else:
+            if use_per_token_if_dynamic:
+                torch.ops._C.custom_dynamic_per_token_scaled_fp8_quant(output, input, scale, scale_ub)
+            else:
+                torch.ops._C.dynamic_scaled_fp8_quant(output, input, scale)
 
     return output, scale
 
@@ -751,12 +757,19 @@ def scaled_int8_quant(
     """
     output = torch.empty_like(input, dtype=torch.int8)
     if scale is not None:
-        # static-per-tensor quantization.
-        assert symmetric == (
-            azp is
-            None), "azp must only be provided for asymmetric quantization."
-        torch.ops._C.static_scaled_int8_quant(output, input, scale, azp)
-        return output, scale, azp
+        if scale.numel() == 1:
+            # static-per-tensor quantization.
+            assert symmetric == (
+                azp is
+                None), "azp must only be provided for asymmetric quantization."
+            torch.ops._C.static_scaled_int8_quant(output, input, scale, azp)
+            return output, scale, azp
+        else:
+            input_azp = None if symmetric else torch.empty_like(scale,
+                                                        dtype=torch.int32)
+            torch.ops._C.custom_dynamic_scaled_int8_quant(output, input, scale, azp)
+            return output, scale, input_azp
+
 
     # dynamic-per-token quantization.
     input_scales = torch.empty((input.numel() // input.shape[-1], 1),

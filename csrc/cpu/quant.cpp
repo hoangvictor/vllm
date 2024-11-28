@@ -610,4 +610,30 @@ void dynamic_scaled_int8_quant(
               scale.data_ptr<float>(), nullptr, num_tokens, hidden_size);
         }
       });
+
+// custom dynamic-per-token quantization.
+void custom_dynamic_scaled_int8_quant(
+    torch::Tensor& out,          // [..., hidden_size]
+    const torch::Tensor& input,  // [..., hidden_size]
+    torch::Tensor& scale,        // [..., 1]
+    c10::optional<torch::Tensor> const& azp) {
+  CPU_KERNEL_GUARD_IN(dynamic_scaled_int8_quant)
+  TORCH_CHECK(input.is_contiguous());
+  TORCH_CHECK(out.is_contiguous());
+
+  int const hidden_size = input.size(-1);
+  int const num_tokens = input.numel() / hidden_size;
+  VLLM_DISPATCH_FLOATING_TYPES(
+      input.scalar_type(), "custom_dynamic_scaled_int8_quant_impl", [&] {
+        if (azp.has_value()) {
+          custom_dynamic_scaled_int8_quant_impl<true>(
+              input.data_ptr<scalar_t>(), out.data_ptr<int8_t>(),
+              scale.data_ptr<float>(), azp->data_ptr<int32_t>(), num_tokens,
+              hidden_size);
+        } else {
+          custom_dynamic_scaled_int8_quant_impl<false>(
+              input.data_ptr<scalar_t>(), out.data_ptr<int8_t>(),
+              scale.data_ptr<float>(), nullptr, num_tokens, hidden_size);
+        }
+      });
 }

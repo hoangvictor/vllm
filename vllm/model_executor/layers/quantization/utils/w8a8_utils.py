@@ -96,8 +96,8 @@ def apply_fp8_linear(
     #   If static, layer.input_scale is scalar and x_scale is input_scale.
 
     # View input as 2D matrix for fp8 methods
-    input_2d = input.view(-1, input.shape[-1])
-    output_shape = [*input.shape[:-1], weight.shape[1]]
+    input_2d = input #.view(-1, input.shape[-1])
+    # output_shape = [*input.shape[:-1], weight.shape[1]]
 
     # cutlass_scaled_mm supports per tensor/channel W and per tensor/token A
     if cutlass_fp8_supported:
@@ -114,7 +114,7 @@ def apply_fp8_linear(
                                        scale_a=x_scale,
                                        scale_b=weight_scale,
                                        bias=bias)
-        return output.view(*output_shape)
+        return output # .view(*output_shape)
 
     # torch.scaled_mm supports per tensor weights + activations only
     # so fallback to naive if per channel or per token
@@ -222,12 +222,13 @@ def apply_int8_linear(
                                          azp_adj=azp_adj,
                                          azp=azp,
                                          bias=bias)
-    return ops.cutlass_scaled_mm(x_q,
+    out = ops.cutlass_scaled_mm(x_q,
                                  weight,
                                  scale_a=x_scale,
                                  scale_b=weight_scale,
                                  out_dtype=input.dtype,
                                  bias=bias)
+    return out
 
 
 def normalize_e4m3fn_to_e4m3fnuz(

@@ -161,6 +161,10 @@ void static_scaled_int8_quant(torch::Tensor& out, torch::Tensor const& input,
 void dynamic_scaled_int8_quant(torch::Tensor& out, torch::Tensor const& input,
                                torch::Tensor& scales,
                                c10::optional<torch::Tensor> const& azp);
+            
+void custom_dynamic_scaled_int8_quant(torch::Tensor& out, torch::Tensor const& input,
+                               torch::Tensor& scales,
+                               c10::optional<torch::Tensor> const& azp);
 
 torch::Tensor gptq_gemm(torch::Tensor a, torch::Tensor b_q_weight,
                         torch::Tensor b_gptq_qzeros,
@@ -176,6 +180,10 @@ void dynamic_scaled_fp8_quant(torch::Tensor& out, torch::Tensor const& input,
                               torch::Tensor& scale);
 
 void dynamic_per_token_scaled_fp8_quant(
+    torch::Tensor& out, torch::Tensor const& input, torch::Tensor& scale,
+    c10::optional<torch::Tensor> const& scale_ub);
+
+void custom_dynamic_per_token_scaled_fp8_quant(
     torch::Tensor& out, torch::Tensor const& input, torch::Tensor& scale,
     c10::optional<torch::Tensor> const& scale_ub);
 
