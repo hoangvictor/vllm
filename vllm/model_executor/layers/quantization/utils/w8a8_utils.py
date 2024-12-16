@@ -90,6 +90,7 @@ def apply_fp8_linear(
     bias: Optional[torch.Tensor] = None,
     cutlass_fp8_supported: bool = True,
     use_per_token_if_dynamic: bool = False,
+    return_scale: bool = False
 ) -> torch.Tensor:
     # ops.scaled_fp8_quant supports both dynamic and static quant.
     #   If dynamic, layer.input_scale is None and x_scale computed from x.
@@ -114,6 +115,8 @@ def apply_fp8_linear(
                                        scale_a=x_scale,
                                        scale_b=weight_scale,
                                        bias=bias)
+        if return_scale:
+            return output, x_scale
         return output # .view(*output_shape)
 
     # torch.scaled_mm supports per tensor weights + activations only
@@ -192,6 +195,21 @@ def apply_fp8_linear(
             return output.to(dtype=input.dtype).view(*output_shape)
 
 
+def int8_w8a8b32o32_linear(
+    input: torch.Tensor,
+    weight: torch.Tensor,
+    weight_scale: torch.Tensor,
+    input_scale: Optional[torch.Tensor] = None,
+    bias: Optional[torch.Tensor] = None
+):
+    return ops.cutlass_scaled_mm(input,
+                                 weight,
+                                 scale_a=input_scale,
+                                 scale_b=weight_scale,
+                                 out_dtype=bias.dtype,
+                                 bias=bias)
+
+
 def apply_int8_linear(
     input: torch.Tensor,
     weight: torch.Tensor,
@@ -200,6 +218,7 @@ def apply_int8_linear(
     input_zero_point: Optional[torch.Tensor] = None,
     azp_adj: Optional[torch.Tensor] = None,
     bias: Optional[torch.Tensor] = None,
+    return_scale: bool = False
 ):
     # ops.scaled_int8_quant supports both dynamic and static quant.
     # * dynamic, layer.input_scale is None and x_scale computed from x.
@@ -222,6 +241,13 @@ def apply_int8_linear(
                                          azp_adj=azp_adj,
                                          azp=azp,
                                          bias=bias)
+    if return_scale:
+        out = ops.cutlass_mm_without_scaling(x_q,
+                                        weight,
+                                        out_dtype=input.dtype,
+                                        bias=bias)
+        return out, x_scale
+    
     out = ops.cutlass_scaled_mm(x_q,
                                  weight,
                                  scale_a=x_scale,

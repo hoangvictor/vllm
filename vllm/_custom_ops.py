@@ -476,6 +476,31 @@ def cutlass_scaled_mm_supports_fp8(cuda_device_capability: int) -> bool:
     return torch.ops._C.cutlass_scaled_mm_supports_fp8(cuda_device_capability)
 
 
+def cutlass_mm_without_scaling(a: torch.Tensor,
+                      b: torch.Tensor,
+                      out_dtype: torch.dtype,
+                      bias: Optional[torch.Tensor] = None) -> torch.Tensor:
+    assert (b.shape[0] % 16 == 0 and b.shape[1] % 16 == 0)
+    assert (out_dtype is torch.bfloat16 or out_dtype is torch.float16)
+    assert bias is None or bias.shape[0] == b.shape[
+        1] and bias.dtype == out_dtype
+
+    m = a.shape[0]
+    n = b.shape[1]
+
+    triton_mm_module = importlib.import_module(
+        "vllm.model_executor.layers.quantization.compressed_tensors."
+        "triton_mm")
+    triton_mm = triton_mm_module.triton_mm
+    return triton_mm(a, b, out_dtype, bias)
+
+    out = torch.empty((m, n), dtype=out_dtype, device=a.device)
+
+    torch.ops._C.cutlass_scaled_mm(out, a, b, None, None, bias)
+
+    return out
+
+
 def cutlass_scaled_mm(a: torch.Tensor,
                       b: torch.Tensor,
                       scale_a: torch.Tensor,
@@ -735,7 +760,6 @@ def scaled_fp8_quant(
 
     return output, scale
 
-
 # int8
 def scaled_int8_quant(
     input: torch.Tensor,
@@ -771,7 +795,6 @@ def scaled_int8_quant(
                                                         dtype=torch.int32)
             torch.ops._C.custom_dynamic_scaled_int8_quant(output, input, scale, azp)
             return output, scale, input_azp
-
 
     # dynamic-per-token quantization.
     input_scales = torch.empty((input.numel() // input.shape[-1], 1),
