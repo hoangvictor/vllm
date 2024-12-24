@@ -13,14 +13,30 @@ def is_weak_contiguous(x: torch.Tensor):
     return is_transpose or is_not_transpose
 
 
+configs=[
+    triton.Config({'BLOCK_SIZE_M': bm, 'BLOCK_SIZE_N': bn, 'BLOCK_SIZE_K': bk})
+    for bm in [128] #, 1024]
+    for bn in [128] #, 1024]
+    for bk in [128] #, 1024]
+]
+# configs=[
+#     triton.Config({'BLOCK_SIZE_M': bm, 'BLOCK_SIZE_N': bn, 'BLOCK_SIZE_K': bk}, num_stages=ns, num_warps=nw)
+#     for bm in [32, 64, 128, 256] #, 1024]
+#     for bn in [32, 64, 128, 256] #, 1024]
+#     for bk in [32, 64, 128, 256] #, 1024]
+#     for ns in [2,4,6]
+#     for nw in [2,4,8,16]
+# ]
+@triton.autotune(
+    configs=configs,
+    key=['M', 'N', 'K']  # This triggers the tuning when input dimensions change
+)
 @triton.jit
 def scaled_mm_kernel(a_ptr, b_ptr, scale_a_ptr, scale_b_ptr, c_ptr, bias_ptr,
                      M, N, K, stride_am, stride_ak, stride_bk, stride_bn,
                      stride_cm, stride_cn, ACCUMULATOR_DTYPE: tl.constexpr,
                      BLOCK_SIZE_M: tl.constexpr, BLOCK_SIZE_N: tl.constexpr,
-                     BLOCK_SIZE_K: tl.constexpr,
-                     BLOCK_SIZE_SCALE_A: tl.constexpr,
-                     BLOCK_SIZE_SCALE_B: tl.constexpr):
+                     BLOCK_SIZE_K: tl.constexpr):
     pid = tl.program_id(axis=0)
 
     num_pid_n = tl.cdiv(N, BLOCK_SIZE_N)
@@ -52,6 +68,8 @@ def scaled_mm_kernel(a_ptr, b_ptr, scale_a_ptr, scale_b_ptr, c_ptr, bias_ptr,
     # NOTE: BLOCK_SIZE_SCALE_A could be 1 or BLOCK_SIZE_M, so need to create
     # appropriate offsets and masks for each case. Same goes for
     # BLOCK_SIZE_SCALE_B.
+    BLOCK_SIZE_SCALE_A: tl.constexpr = BLOCK_SIZE_M
+    BLOCK_SIZE_SCALE_B: tl.constexpr = BLOCK_SIZE_N
     offsets_scale_am = (tl.arange(0, BLOCK_SIZE_SCALE_A) +
                         (BLOCK_SIZE_SCALE_A > 1) * pid_m * BLOCK_SIZE_M)
     masks_scale_am = offsets_scale_am < M
@@ -152,8 +170,8 @@ def triton_scaled_mm(input: torch.Tensor,
 
     has_scalar = lambda x: x.shape[0] == 1 and x.shape[1] == 1
 
-    block_size_sa = 1 if has_scalar(scale_a) else block_size_m
-    block_size_sb = 1 if has_scalar(scale_b) else block_size_n
+    # block_size_sa = 1 if has_scalar(scale_a) else block_size_m
+    # block_size_sb = 1 if has_scalar(scale_b) else block_size_n
 
     accumulator_dtype = tl.float32 if input.is_floating_point() else tl.int32
 
@@ -174,11 +192,11 @@ def triton_scaled_mm(input: torch.Tensor,
                            weight.stride(1),
                            result.stride(0),
                            result.stride(1),
-                           accumulator_dtype,
-                           BLOCK_SIZE_M=block_size_m,
-                           BLOCK_SIZE_N=block_size_n,
-                           BLOCK_SIZE_K=block_size_k,
-                           BLOCK_SIZE_SCALE_A=block_size_sa,
-                           BLOCK_SIZE_SCALE_B=block_size_sb)
+                           accumulator_dtype)
+                        #    BLOCK_SIZE_M=block_size_m,
+                        #    BLOCK_SIZE_N=block_size_n,
+                        #    BLOCK_SIZE_K=block_size_k,
+                        #    BLOCK_SIZE_SCALE_A=block_size_sa,
+                        #    BLOCK_SIZE_SCALE_B=block_size_sb)
 
     return result.to(out_dtype)

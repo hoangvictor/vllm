@@ -11,6 +11,9 @@ from vllm.logger import init_logger
 from vllm.platforms import current_platform
 from vllm.scalar_type import ScalarType
 
+if current_platform.is_rocm():
+    from vllm.model_executor.layers.quantization.compressed_tensors.triton_scaled_mm import triton_scaled_mm
+
 logger = init_logger(__name__)
 
 if not current_platform.is_tpu() and not current_platform.is_hpu():
@@ -49,7 +52,7 @@ def hint_on_error(fn):
         except NotImplementedError as e:
             msg = (
                 "Error in calling custom op %s: %s\n"
-                "Not implemented or built, mostly likely because the current current device "
+                "Not implemented or built, mostly likely because the current device "
                 "does not support this kernel (less likely TORCH_CUDA_ARCH_LIST was set "
                 "incorrectly while building)")
             logger.error(msg, fn.__name__, e)
@@ -516,11 +519,8 @@ def cutlass_scaled_mm(a: torch.Tensor,
     n = b.shape[1]
 
     if current_platform.is_rocm():
-        triton_scaled_mm_module = importlib.import_module(
-            "vllm.model_executor.layers.quantization.compressed_tensors."
-            "triton_scaled_mm")
-        triton_scaled_mm = triton_scaled_mm_module.triton_scaled_mm
         if len(scale_b.shape) == 1:
+            scale_a = scale_a.view(-1,1)
             scale_b = scale_b.view(-1,1)
         return triton_scaled_mm(a, b, scale_a, scale_b, out_dtype, bias)
 

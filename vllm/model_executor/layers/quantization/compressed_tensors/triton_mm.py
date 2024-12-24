@@ -12,7 +12,17 @@ def is_weak_contiguous(x: torch.Tensor):
     is_transpose = strides[1] == 1 and (strides[0] >= max(1, sizes[1]))
     return is_transpose or is_not_transpose
 
-
+@triton.autotune(
+    configs=[
+        triton.Config({'BLOCK_SIZE_M': bm, 'BLOCK_SIZE_N': bn, 'BLOCK_SIZE_K': bk}, num_stages=ns, num_warps=nw)
+        for bm in [32, 64, 128] #, 1024]
+        for bn in [32, 64, 128] #, 1024]
+        for bk in [128, 256] #, 1024]
+        for ns in [2,4,6]
+        for nw in [2,4,8,16]
+    ],
+    key=['M', 'N', 'K']  # This triggers the tuning when input dimensions change
+)
 @triton.jit
 def mm_kernel(a_ptr, b_ptr, c_ptr, bias_ptr,
                      M, N, K, stride_am, stride_ak, stride_bk, stride_bn,
@@ -90,13 +100,11 @@ def mm_kernel(a_ptr, b_ptr, c_ptr, bias_ptr,
 
 # input   - [M, K]
 # weight - [K, N]
+@triton.jit
 def triton_mm(input: torch.Tensor,
                      weight: torch.Tensor,
                      out_dtype: Type[torch.dtype],
-                     bias: Optional[torch.Tensor] = None,
-                     block_size_m: int = 64,
-                     block_size_n: int = 64,
-                     block_size_k: int = 64) -> torch.Tensor:
+                     bias: Optional[torch.Tensor] = None) -> torch.Tensor:
     M, K = input.shape
     N = weight.shape[1]
 
@@ -130,9 +138,6 @@ def triton_mm(input: torch.Tensor,
                            weight.stride(1),
                            result.stride(0),
                            result.stride(1),
-                           accumulator_dtype,
-                           BLOCK_SIZE_M=block_size_m,
-                           BLOCK_SIZE_N=block_size_n,
-                           BLOCK_SIZE_K=block_size_k)
+                           accumulator_dtype)
 
     return result.to(out_dtype)

@@ -41,7 +41,13 @@ try:
     finally:
         amdsmi.amdsmi_shut_down()
 except Exception:
-    pass
+    try:
+        import subprocess
+        output = subprocess.run('rocm-smi')
+        if output .returncode == 0:
+            is_rocm = True
+    except Exception:
+        pass
 
 is_hpu = False
 try:
