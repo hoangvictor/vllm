@@ -202,6 +202,7 @@ def int8_w8a8b32o32_linear(
     input_scale: Optional[torch.Tensor] = None,
     bias: Optional[torch.Tensor] = None
 ):
+
     return ops.cutlass_scaled_mm(input,
                                  weight,
                                  scale_a=input_scale,
