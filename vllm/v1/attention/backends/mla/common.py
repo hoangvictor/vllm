@@ -151,7 +151,7 @@ curr_o, curr_lse = scaled_dot_product_attention(
     torch.cat([new_k_nope, new_k_pe.unsqueeze(1).expand(-1, N, -1)], dim=-1),
     new_v,
     casual=True,
-    return_softmax_lse=True
+    return_attn_probs=True
 ) 
 
 // Compute attention with the already existing context
@@ -171,7 +171,7 @@ for chunk_idx in range(cdiv(C, MCC)):
                    dim=-1),
         cache_v_chunk,
         casual=False,
-        return_softmax_lse=True
+        return_attn_probs=True
     )
 
     curr_o, curr_lse = merge_attn_states(
@@ -763,7 +763,7 @@ class MLACommonImpl(MLAAttentionImpl[M], Generic[M]):
                 max_seqlen_k=prefill_metadata.chunked_context.max_seq_lens[i],
                 softmax_scale=self.scale,
                 causal=False,  # Context is unmasked
-                return_softmax_lse=True,
+                return_attn_probs=True,
             )
 
             if output is None:
@@ -818,7 +818,7 @@ class MLACommonImpl(MLAAttentionImpl[M], Generic[M]):
             max_seqlen_k=attn_metadata.prefill.max_query_len,
             softmax_scale=self.scale,
             causal=True,
-            return_softmax_lse=has_context,
+            return_attn_probs=has_context,
         )
 
         if has_context:

@@ -137,8 +137,13 @@ class RocmPlatform(Platform):
                              kv_cache_dtype, block_size, use_v1,
                              use_mla) -> str:
         if use_mla:
-            logger.info("Using Triton MLA backend.")
-            return "vllm.attention.backends.triton_mla.TritonMLABackend"
+            if use_v1:
+                logger.info_once("Using Triton MLA backend on V1 engine.")
+                return ("vllm.v1.attention.backends.mla."
+                        "triton_mla.TritonMLABackend")
+            else:
+                logger.info("Using Triton MLA backend.")
+                return "vllm.attention.backends.triton_mla.TritonMLABackend"
         selected_backend = (_Backend.ROCM_FLASH if selected_backend
                             == _Backend.FLASH_ATTN else selected_backend)
         if envs.VLLM_USE_V1:

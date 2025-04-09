@@ -221,7 +221,7 @@ class InductorAdaptor(CompilerInterface):
                 return inductor_compiled_graph
 
             hijacked_compile_fx_inner = torch._inductor.compile_fx.compile_fx_inner  # noqa
-        elif torch.__version__ >= "2.6":
+        elif torch.__version__ >= "2.6" or torch.__version__.startswith("2.6"):
             # function renamed in 2.6
             original_load_name = None
 
