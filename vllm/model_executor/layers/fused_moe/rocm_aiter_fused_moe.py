@@ -5,6 +5,7 @@ import torch
 
 import vllm.envs as envs
 from vllm.platforms import current_platform
+from vllm.utils import direct_register_custom_op
 
 
 def is_rocm_aiter_moe_enabled() -> bool:
@@ -19,19 +20,26 @@ def is_rocm_aiter_block_scaled_moe_enabled() -> bool:
 
 
 def rocm_aiter_fused_experts(
-        *,
         hidden_states: torch.Tensor,
         w1: torch.Tensor,
         w2: torch.Tensor,
         topk_weights: torch.Tensor,
         topk_ids: torch.Tensor,
+        activation: str = "silu",
+        apply_router_weight_on_input: bool = False,
         use_fp8_w8a8: bool = False,
+        use_int8_w8a16: bool = False,
+        use_int4_w4a16: bool = False,
+        global_num_experts: int = -1,
+        expert_map: Optional[torch.Tensor] = None,
         w1_scale: Optional[torch.Tensor] = None,
         w2_scale: Optional[torch.Tensor] = None,
+        w1_zp: Optional[torch.Tensor] = None,
+        w2_zp: Optional[torch.Tensor] = None,
+        a1_scale: Optional[torch.Tensor] = None,
+        a2_scale: Optional[torch.Tensor] = None,
         block_shape: Optional[List[int]] = None,
-        expert_mask: Optional[torch.Tensor] = None,
-        **kwagrs  # Ignore additional keyword arguments
-) -> torch.Tensor:
+        expert_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
 
     import aiter as rocm_aiter
     import aiter.fused_moe_bf16_asm as rocm_aiter_asm_fmoe
@@ -108,16 +116,58 @@ def rocm_aiter_fused_experts(
                              topk_ids=topk_ids)
 
 
-def rocm_aiter_topk_softmax(topk_weights: torch.Tensor,
-                            topk_indices: torch.Tensor,
-                            token_expert_indices: torch.Tensor,
-                            gating_output: torch.Tensor,
-                            renormalize: bool) -> tuple[torch.Tensor, ...]:
+def rocm_aiter_fused_experts_fake(
+        hidden_states: torch.Tensor,
+        w1: torch.Tensor,
+        w2: torch.Tensor,
+        topk_weights: torch.Tensor,
+        topk_ids: torch.Tensor,
+        activation: str = "silu",
+        apply_router_weight_on_input: bool = False,
+        use_fp8_w8a8: bool = False,
+        use_int8_w8a16: bool = False,
+        use_int4_w4a16: bool = False,
+        global_num_experts: int = -1,
+        expert_map: Optional[torch.Tensor] = None,
+        w1_scale: Optional[torch.Tensor] = None,
+        w2_scale: Optional[torch.Tensor] = None,
+        w1_zp: Optional[torch.Tensor] = None,
+        w2_zp: Optional[torch.Tensor] = None,
+        a1_scale: Optional[torch.Tensor] = None,
+        a2_scale: Optional[torch.Tensor] = None,
+        block_shape: Optional[List[int]] = None,
+        expert_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    return torch.empty_like(hidden_states)
+
+
+direct_register_custom_op(op_name="rocm_aiter_fused_experts",
+                          op_func=rocm_aiter_fused_experts,
+                          mutates_args=[],
+                          fake_impl=rocm_aiter_fused_experts_fake)
+
+
+def rocm_aiter_topk_softmax(
+        topk_weights: torch.Tensor, topk_indices: torch.Tensor,
+        token_expert_indices: torch.Tensor, gating_output: torch.Tensor,
+        renormalize: bool) -> tuple[torch.Tensor, torch.Tensor]:
     import aiter as rocm_aiter
     rocm_aiter.topk_softmax(topk_weights, topk_indices, token_expert_indices,
                             gating_output, renormalize)
 
     return topk_weights, topk_indices
+
+
+def rocm_aiter_topk_softmax_fake(
+        topk_weights: torch.Tensor, topk_indices: torch.Tensor,
+        token_expert_indices: torch.Tensor, gating_output: torch.Tensor,
+        renormalize: bool) -> tuple[torch.Tensor, torch.Tensor]:
+    return torch.empty_like(topk_weights), torch.empty_like(topk_indices)
+
+
+direct_register_custom_op(op_name="rocm_aiter_topk_softmax",
+                          op_func=rocm_aiter_topk_softmax,
+                          mutates_args=[],
+                          fake_impl=rocm_aiter_topk_softmax_fake)
 
 
 def shuffle_weights(*tensors: torch.Tensor) -> tuple[torch.Tensor, ...]:
