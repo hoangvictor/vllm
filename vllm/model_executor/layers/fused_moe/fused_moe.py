@@ -3,7 +3,7 @@
 import functools
 import json
 import os
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, List
 
 import torch
 
@@ -480,7 +480,7 @@ def invoke_fused_moe_kernel(A: torch.Tensor,
                             use_int8_w8a16: bool,
                             use_int4_w4a16: bool,
                             per_channel_quant: bool,
-                            block_shape: Optional[list[int]] = None) -> None:
+                            block_shape: Optional[List[int]] = None) -> None:
     assert topk_weights is not None or not mul_routed_weight
     assert topk_weights is None or topk_weights.stride(1) == 1
     assert sorted_token_ids.stride(0) == 1
@@ -637,7 +637,7 @@ def invoke_fused_moe_kernel(A: torch.Tensor,
 def get_config_file_name(E: int,
                          N: int,
                          dtype: Optional[str],
-                         block_shape: Optional[list[int]] = None) -> str:
+                         block_shape: Optional[List[int]] = None) -> str:
     device_name = current_platform.get_device_name().replace(" ", "_")
     dtype_selector = "" if not dtype else f",dtype={dtype}"
     block_shape_selector = ("" if not block_shape or not all(block_shape) else
@@ -757,7 +757,7 @@ def get_default_config(
     topk: int,
     dtype: Optional[str],
     is_marlin: bool,
-    block_shape: Optional[list[int]] = None,
+    block_shape: Optional[List[int]] = None,
 ) -> dict[str, int]:
     if dtype == "fp8_w8a8" and block_shape is not None:
         # Block-wise quant: BLOCK_SIZE_N must be divisible by block_shape[0]
@@ -816,7 +816,7 @@ def try_get_optimal_moe_config(
     dtype: Optional[str],
     M: int,
     is_marlin: bool = False,
-    block_shape: Optional[list[int]] = None,
+    block_shape: Optional[List[int]] = None,
 ):
     from vllm.model_executor.layers.fused_moe import get_config
     override_config = get_config()
@@ -1013,7 +1013,7 @@ def inplace_fused_experts(hidden_states: torch.Tensor,
                           w2_zp: Optional[torch.Tensor] = None,
                           a1_scale: Optional[torch.Tensor] = None,
                           a2_scale: Optional[torch.Tensor] = None,
-                          block_shape: Optional[list[int]] = None) -> None:
+                          block_shape: Optional[List[int]] = None) -> None:
     fused_experts_impl(hidden_states, w1, w2, topk_weights, topk_ids, True,
                        activation, apply_router_weight_on_input, use_fp8_w8a8,
                        use_int8_w8a8, use_int8_w8a16, use_int4_w4a16,
@@ -1043,7 +1043,7 @@ def inplace_fused_experts_fake(
         w2_zp: Optional[torch.Tensor] = None,
         a1_scale: Optional[torch.Tensor] = None,
         a2_scale: Optional[torch.Tensor] = None,
-        block_shape: Optional[list[int]] = None) -> None:
+        block_shape: Optional[List[int]] = None) -> None:
     pass
 
 
@@ -1077,7 +1077,7 @@ def outplace_fused_experts(
         w2_zp: Optional[torch.Tensor] = None,
         a1_scale: Optional[torch.Tensor] = None,
         a2_scale: Optional[torch.Tensor] = None,
-        block_shape: Optional[list[int]] = None) -> torch.Tensor:
+        block_shape: Optional[List[int]] = None) -> torch.Tensor:
     return fused_experts_impl(hidden_states, w1, w2, topk_weights, topk_ids,
                               False, activation, apply_router_weight_on_input,
                               use_fp8_w8a8, use_int8_w8a8, use_int8_w8a16,
@@ -1107,7 +1107,7 @@ def outplace_fused_experts_fake(
         w2_zp: Optional[torch.Tensor] = None,
         a1_scale: Optional[torch.Tensor] = None,
         a2_scale: Optional[torch.Tensor] = None,
-        block_shape: Optional[list[int]] = None) -> torch.Tensor:
+        block_shape: Optional[List[int]] = None) -> torch.Tensor:
     return torch.empty_like(hidden_states)
 
 
@@ -1157,7 +1157,7 @@ def fused_experts(hidden_states: torch.Tensor,
                   w2_zp: Optional[torch.Tensor] = None,
                   a1_scale: Optional[torch.Tensor] = None,
                   a2_scale: Optional[torch.Tensor] = None,
-                  block_shape: Optional[list[int]] = None,
+                  block_shape: Optional[List[int]] = None,
                   allow_deep_gemm: bool = False) -> torch.Tensor:
     # For now, disable DeepGemm for small N (<= 512) until better
     # permute/unpermute ops are available.
@@ -1228,7 +1228,7 @@ def fused_experts_impl(
     w2_zp: Optional[torch.Tensor] = None,
     a1_scale: Optional[torch.Tensor] = None,
     a2_scale: Optional[torch.Tensor] = None,
-    block_shape: Optional[list[int]] = None,
+    block_shape: Optional[List[int]] = None,
 ) -> torch.Tensor:
     # Check constraints.
     if use_int4_w4a16:
@@ -1429,7 +1429,7 @@ def fused_moe(
     w2_zp: Optional[torch.Tensor] = None,
     a1_scale: Optional[torch.Tensor] = None,
     a2_scale: Optional[torch.Tensor] = None,
-    block_shape: Optional[list[int]] = None,
+    block_shape: Optional[List[int]] = None,
 ) -> torch.Tensor:
     """
     This function computes a Mixture of Experts (MoE) layer using two sets of
@@ -1474,7 +1474,7 @@ def fused_moe(
         a1.
     - a2_scale (Optional[torch.Tensor]): Optional scale to be used for
         a2.
-    - block_shape: (Optional[list[int]]): Optional block size for block-wise
+    - block_shape: (Optional[List[int]]): Optional block size for block-wise
         quantization.
 
     Returns:
@@ -1525,7 +1525,7 @@ class TritonExperts(mk.FusedMoEPermuteExpertsUnpermute):
         use_int8_w8a16: bool,
         use_int4_w4a16: bool,
         per_channel_quant: bool,
-        block_shape: Optional[list[int]] = None,
+        block_shape: Optional[List[int]] = None,
         block_m: Optional[int] = None,
     ):
         super().__init__()
@@ -1697,7 +1697,7 @@ def modular_triton_fused_moe(
     use_int8_w8a16: bool,
     use_int4_w4a16: bool,
     per_channel_quant: bool,
-    block_shape: Optional[list[int]] = None,
+    block_shape: Optional[List[int]] = None,
 ) -> mk.FusedMoEModularKernel:
     qtype = get_config_qtype(
         use_fp8_w8a8=use_fp8_w8a8,
