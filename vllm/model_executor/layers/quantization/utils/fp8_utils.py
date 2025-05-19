@@ -4,7 +4,7 @@
 import functools
 import json
 import os
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Optional, Union, List
 
 import torch
 
@@ -32,7 +32,7 @@ def cutlass_scaled_mm(
     B: torch.Tensor,
     As: torch.Tensor,
     Bs: torch.Tensor,
-    block_size: list[int],
+    block_size: List[int],
     output_dtype: torch.dtype = torch.float16,
 ) -> torch.Tensor:
     return ops.cutlass_scaled_mm(A,
@@ -47,7 +47,7 @@ def rocm_aiter_gemm_w8a8_blockscale_impl(
     B: torch.Tensor,
     As: torch.Tensor,
     Bs: torch.Tensor,
-    block_size: list[int],
+    block_size: List[int],
     output_dtype: torch.dtype = torch.float16,
 ) -> torch.Tensor:
     import aiter as rocm_aiter
@@ -60,7 +60,7 @@ def rocm_aiter_gemm_w8a8_blockscale_fake(
     B: torch.Tensor,
     As: torch.Tensor,
     Bs: torch.Tensor,
-    block_size: list[int],
+    block_size: List[int],
     output_dtype: torch.dtype = torch.float16,
 ) -> torch.Tensor:
 
@@ -87,7 +87,7 @@ def dispatch_w8a8_blockscale_func(
         torch.Tensor,
         torch.Tensor,
         torch.Tensor,
-        list[int],
+        List[int],
         torch.dtype,
 ], torch.Tensor]:
     if use_cutlass:
@@ -102,7 +102,7 @@ def dispatch_w8a8_blockscale_func(
 def apply_w8a8_block_fp8_linear(
     input: torch.Tensor,
     weight: torch.Tensor,
-    block_size: list[int],
+    block_size: List[int],
     weight_scale: torch.Tensor,
     input_scale: Optional[torch.Tensor] = None,
     bias: Optional[torch.Tensor] = None,
@@ -169,7 +169,7 @@ def apply_w8a8_block_fp8_linear(
 def apply_w8a8_block_fp8_linear_fake(
     input: torch.Tensor,
     weight: torch.Tensor,
-    block_size: list[int],
+    block_size: List[int],
     weight_scale: torch.Tensor,
     input_scale: Optional[torch.Tensor] = None,
     bias: Optional[torch.Tensor] = None,
@@ -529,7 +529,7 @@ def w8a8_block_fp8_matmul(
     B: torch.Tensor,
     As: torch.Tensor,
     Bs: torch.Tensor,
-    block_size: list[int],
+    block_size: List[int],
     output_dtype: torch.dtype = torch.float16,
 ) -> torch.Tensor:
     """This function performs matrix multiplication with block-wise

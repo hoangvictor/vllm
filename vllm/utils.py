@@ -2837,8 +2837,7 @@ def is_torch_equal_or_newer(target: str) -> bool:
         Whether the condition meets.
     """
     try:
-        torch_version = version.parse(str(torch.__version__))
-        return torch_version >= version.parse(target)
+        return str(torch.__version__) >= target
     except Exception:
         # Fallback to PKG-INFO to load the package info, needed by the doc gen.
         return Version(importlib.metadata.version('torch')) >= Version(target)
