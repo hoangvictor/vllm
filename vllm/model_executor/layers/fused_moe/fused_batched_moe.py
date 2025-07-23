@@ -6,7 +6,7 @@ from typing import Optional
 import torch
 import triton
 import triton.language as tl
-
+from typing import List
 import vllm.model_executor.layers.fused_moe.modular_kernel as mk
 from vllm.model_executor.layers.fused_moe.config import FusedMoEQuantConfig
 from vllm.model_executor.layers.fused_moe.fused_moe import (
@@ -368,7 +368,7 @@ def invoke_moe_batched_triton_kernel(
         use_int4_w4a16: bool,
         config: dict[str, int],
         per_act_token_quant: bool,
-        block_shape: Optional[list[int]] = None):
+        block_shape: Optional[List[int]] = None):
 
     assert not use_int4_w4a16
     max_num_tokens = A.size(1)
@@ -632,7 +632,7 @@ class NaiveBatchedExperts(mk.FusedMoEPermuteExpertsUnpermute):
         use_int8_w8a8: bool = False,
         use_int8_w8a16: bool = False,
         use_int4_w4a16: bool = False,
-        block_shape: Optional[list[int]] = None,
+        block_shape: Optional[List[int]] = None,
         per_act_token_quant: bool = False,
     ):
         super().__init__(
@@ -763,7 +763,7 @@ def batched_moe_kernel_quantize_input(
     expert_num_tokens: torch.Tensor,
     qtype: Optional[torch.dtype],
     per_act_token_quant: bool,
-    block_shape: Optional[list[int]] = None,
+    block_shape: Optional[List[int]] = None,
 ) -> tuple[torch.Tensor, Optional[torch.Tensor]]:
     if (torch.compiler.is_compiling()
             or torch.cuda.is_current_stream_capturing()):
@@ -839,7 +839,7 @@ class BatchedTritonExperts(mk.FusedMoEPermuteExpertsUnpermute):
         use_int8_w8a16: bool = False,
         use_int4_w4a16: bool = False,
         per_act_token_quant: bool = False,
-        block_shape: Optional[list[int]] = None,
+        block_shape: Optional[List[int]] = None,
     ):
         super().__init__(
             FusedMoEQuantConfig.make(

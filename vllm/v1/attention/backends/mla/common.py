@@ -212,6 +212,8 @@ from vllm.v1.attention.backends.utils import (AttentionMetadataBuilder,
 from vllm.v1.kv_cache_interface import AttentionSpec
 from vllm.v1.worker.block_table import BlockTable
 
+from vllm import envs
+
 try:
     from vllm.vllm_flash_attn import flash_attn_varlen_func
     is_vllm_fa = True
@@ -395,6 +397,7 @@ class MLACommonMetadataBuilder(AttentionMetadataBuilder[M]):
         # better naming here)
         decodes = []
         prefills = []
+        prefill_ids_and_tokens = []
         num_decode_tokens = 0
         num_prefill_tokens = 0
 
@@ -408,6 +411,7 @@ class MLACommonMetadataBuilder(AttentionMetadataBuilder[M]):
                 decodes.append(i)
                 num_decode_tokens += num_tokens
             else:
+                prefill_ids_and_tokens.append((i, num_tokens))
                 prefills.append(i)
                 num_prefill_tokens += num_tokens
 
@@ -434,6 +438,35 @@ class MLACommonMetadataBuilder(AttentionMetadataBuilder[M]):
 
             input_batch.swap_states(prefills[i - 1], decode_idx)
             modified_batch = True
+
+        if envs.VLLM_SORT_REQUESTS_BY_SEQUENCE_LENGTH:
+            prefills = []
+            prefill_ids_and_tokens = []
+            for i, req_id in enumerate(input_batch.req_ids):
+                num_tokens = scheduler_output.num_scheduled_tokens[req_id]
+                if num_tokens != 1:
+                    prefill_ids_and_tokens.append((i, num_tokens))
+                    prefills.append(i)
+                    
+            # print("Before:", prefill_ids_and_tokens)
+            # print("Before:", prefills)
+            # print("Before:", input_batch.req_ids)
+            prefill_ids_and_tokens = sorted(
+                prefill_ids_and_tokens, key=lambda x: x[1], reverse=True
+            )
+            for i, (req_idx, _) in enumerate(prefill_ids_and_tokens[:-1]):
+                # Sort the prefill requests by sequence length
+                # (i.e. num_tokens) in descending order
+                if req_idx != prefills[i]:
+                    # print("Swapping prefill", req_idx, "with",
+                    #       prefills[i], "in the batch")
+                    input_batch.swap_states(req_idx, prefills[i])
+                    prefills[prefills.index(req_idx)], prefills[i] = prefills[i], req_idx
+                    modified_batch = True
+                
+            # print("After:", prefill_ids_and_tokens)
+            # print("After:", prefills)
+            # print("After:", input_batch.req_ids)
 
         # Save for next `build` call
         # TODO(lucas): this is a bit of a hack, we should probably have a
@@ -846,7 +879,8 @@ class MLACommonImpl(MLAAttentionImpl[M], Generic[M]):
             .split([self.qk_nope_head_dim, self.v_head_dim], dim=-1)
 
         k = torch.cat((k_nope, k_pe.expand((*k_nope.shape[:-1], -1))), dim=-1)
-
+        
+        # print("attn_metadata.prefill.query_start_loc:", attn_metadata.prefill.query_start_loc)
         output = self._flash_attn_varlen_diff_headdims(
             q=q,
             k=k,

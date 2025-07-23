@@ -569,7 +569,7 @@ def get_env_info():
     pip_version, pip_list_output = get_pip_packages(run_lambda)
 
     if TORCH_AVAILABLE:
-        version_str = torch.__version__
+        version_str = str(torch.__version__)
         debug_mode_str = str(torch.version.debug)
         cuda_available_str = str(torch.cuda.is_available())
         cuda_version_str = torch.version.cuda

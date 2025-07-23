@@ -2976,8 +2976,7 @@ def is_torch_equal_or_newer(target: str) -> bool:
 
 # Helper function used in testing.
 def _is_torch_equal_or_newer(torch_version: str, target: str) -> bool:
-    torch_version = version.parse(torch_version)
-    return torch_version >= version.parse(target)
+    return torch_version >= target
 
 
 @cache

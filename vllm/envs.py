@@ -953,7 +953,12 @@ environment_variables: dict[str, Callable[[], Any]] = {
     # generations on machines < 100 for compressed-tensors
     # models
     "VLLM_USE_NVFP4_CT_EMULATIONS":
-    lambda: bool(int(os.getenv("VLLM_USE_NVFP4_CT_EMULATIONS", "0")))
+    lambda: bool(int(os.getenv("VLLM_USE_NVFP4_CT_EMULATIONS", "0"))),
+
+    # Controls whether or not vLLM sorts requests by sequence length
+    # before processing them.
+    "VLLM_SORT_REQUESTS_BY_SEQUENCE_LENGTH":
+    lambda: bool(int(os.getenv("VLLM_SORT_REQUESTS_BY_SEQUENCE_LENGTH", "1")))
 }
 
 # --8<-- [end:env-vars-definition]

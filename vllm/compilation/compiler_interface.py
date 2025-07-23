@@ -331,7 +331,7 @@ class InductorAdaptor(CompilerInterface):
                 return inductor_compiled_graph
 
             hijacked_compile_fx_inner = torch._inductor.compile_fx.compile_fx_inner  # noqa
-        elif torch.__version__ >= "2.6":
+        elif str(torch.__version__) >= "2.6":
             # function renamed in 2.6
             original_load_name = None
 
@@ -483,7 +483,7 @@ class InductorAdaptor(CompilerInterface):
                     "Inductor cache lookup failed. Please remove"
                     f"the cache directory and try again."  # noqa
                 )
-            elif torch.__version__ >= "2.6":
+            elif str(torch.__version__) >= "2.6":
                 from torch._inductor.output_code import (
                     CompiledFxGraphConstantsWithGm)
                 constants = CompiledFxGraphConstantsWithGm(graph)
