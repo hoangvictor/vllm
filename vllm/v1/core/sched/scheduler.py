@@ -103,6 +103,8 @@ class Scheduler(SchedulerInterface):
             self.policy = SchedulingPolicy.PRIORITY
         elif self.scheduler_config.policy == "fcfs":
             self.policy = SchedulingPolicy.FCFS
+        elif self.scheduler_config.policy == "length_priority":
+            self.policy = SchedulingPolicy.LENGTH_PRIORITY
         else:
             raise ValueError(
                 f"Unknown scheduling policy: {self.scheduler_config.policy}")

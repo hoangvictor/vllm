@@ -16,6 +16,7 @@ class SchedulingPolicy(Enum):
     """Enum for scheduling policies."""
     FCFS = "fcfs"
     PRIORITY = "priority"
+    LENGTH_PRIORITY = "length_priority"
 
 
 class RequestQueue(ABC):
@@ -214,11 +215,20 @@ class PriorityRequestQueue(RequestQueue):
         return reversed(list(self))
 
 
+class LengthPriorityRequestQueue(PriorityRequestQueue):
+    def add_request(self, request: Request) -> None:
+        """Add a request to the queue according to priority policy."""
+        heapq.heappush(self._heap,
+                       (request.num_prompt_tokens, request.arrival_time, request))
+
+
 def create_request_queue(policy: SchedulingPolicy) -> RequestQueue:
     """Create request queue based on scheduling policy."""
     if policy == SchedulingPolicy.PRIORITY:
         return PriorityRequestQueue()
     elif policy == SchedulingPolicy.FCFS:
         return FCFSRequestQueue()
+    elif policy == SchedulingPolicy.LENGTH_PRIORITY:
+        return LengthPriorityRequestQueue()
     else:
         raise ValueError(f"Unknown scheduling policy: {policy}")
