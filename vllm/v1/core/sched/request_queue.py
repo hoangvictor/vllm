@@ -221,6 +221,27 @@ class LengthPriorityRequestQueue(PriorityRequestQueue):
         heapq.heappush(self._heap,
                        (request.num_prompt_tokens, request.arrival_time, request))
 
+    def increase_idle_calls(self):
+        """Increase the idle calls for all requests in the queue."""
+        for r in self._heap:
+            if not hasattr(r[2], 'idle_calls'):
+                r[2].idle_calls = 0
+            else:
+                r[2].idle_calls += 1
+
+    def refresh_priority(self, threshold: int) -> None:
+        remove_requests = []
+        for r in self._heap:
+            if r[2].idle_calls >= threshold:
+                print("Remove request due to idle calls threshold exceeded",
+                      r[2].idle_calls, threshold)
+                remove_requests.append(r[2])
+        self.remove_requests(remove_requests)
+        for r in remove_requests:
+            r.priority = 0 # Reset priority to 0
+            r.idle_calls = 0
+            self.add_request(r)
+
 
 def create_request_queue(policy: SchedulingPolicy) -> RequestQueue:
     """Create request queue based on scheduling policy."""

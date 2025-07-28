@@ -201,6 +201,12 @@ class Scheduler(SchedulerInterface):
         # For logging.
         scheduled_timestamp = time.monotonic()
 
+        # Refresh the priority of requests in the waiting queue.
+        if self.policy == SchedulingPolicy.LENGTH_PRIORITY:
+            self.waiting.increase_idle_calls()
+            self.waiting.refresh_priority(
+                self.scheduler_config.length_priority_idle_calls_threshold)
+
         # First, schedule the RUNNING requests.
         req_index = 0
         while req_index < len(self.running) and token_budget > 0:

@@ -2210,8 +2210,11 @@ class SchedulerConfig:
     disable_hybrid_kv_cache_manager: bool = False
     """If set to True, KV cache manager will allocate the same size of KV cache
     for all attention layers even if there are multiple type of attention layers
-    like full attention and sliding window attention.
-    """
+    like full attention and sliding window attention."""
+
+    length_priority_idle_calls_threshold: int = 2
+    """The number of idle calls before the scheduler force the priority
+    of the request to 0 to avoid starvation."""
 
     def compute_hash(self) -> str:
         """
